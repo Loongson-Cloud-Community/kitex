@@ -195,6 +195,17 @@ func (s *server) Run() (err error) {
 		return err
 	}
 
+	// start profiler
+	if s.opt.RemoteOpt.ProfilerCtl != nil {
+		go func() {
+			klog.Info("KITEX: server starting profiler")
+			err := s.opt.RemoteOpt.ProfilerCtl.Run(context.Background())
+			if err != nil {
+				klog.Errorf("KITEX: server started profiler error: error=%s", err.Error())
+			}
+		}()
+	}
+
 	errCh := s.svr.Start()
 	select {
 	case err = <-errCh:

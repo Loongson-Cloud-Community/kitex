@@ -22,6 +22,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/cloudwego/kitex/pkg/profiler"
 	"github.com/cloudwego/kitex/pkg/streaming"
 
 	internal_server "github.com/cloudwego/kitex/internal/server"
@@ -174,6 +175,15 @@ func WithTracer(c stats.Tracer) Option {
 			o.TracerCtl = &internal_stats.Controller{}
 		}
 		o.TracerCtl.Append(c)
+	}}
+}
+
+// WithProfiler set a profiler to server.
+func WithProfiler(p profiler.Profiler) Option {
+	return Option{F: func(o *internal_server.Options, di *utils.Slice) {
+		di.Push(fmt.Sprintf("WithProfiler(%T{%+v})", p, p))
+
+		o.RemoteOpt.ProfilerCtl = remote.NewProfilerController(p)
 	}}
 }
 

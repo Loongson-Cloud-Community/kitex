@@ -98,6 +98,8 @@ type ServerOption struct {
 
 	TracerCtl *internal_stats.Controller
 
+	ProfilerCtl ProfilerController
+
 	GRPCCfg *grpc.ServerConfig
 
 	GRPCUnknownServiceHandler func(ctx context.Context, method string, stream streaming.Stream) error
