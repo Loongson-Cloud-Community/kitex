@@ -25,15 +25,23 @@ import (
 )
 
 const (
+	keyType      = "type"
 	typeTrace    = "trace"
 	typeProfiler = "profiler"
+
+	keyStage     = "stage"
+	stageMeta    = "meta"
+	stagePayload = "payload"
+
+	keyFrom = "from"
 )
 
 type ProfilerController interface {
 	Run(ctx context.Context) (err error)
 	Stop()
-	Tag(ctx context.Context, msg Message)
-	Untag(ctx context.Context, msg Message)
+	TagMeta(ctx context.Context, msg Message)
+	TagPayload(ctx context.Context, msg Message)
+	Untag(ctx context.Context)
 }
 
 var _ ProfilerController = (*profilerController)(nil)
@@ -49,7 +57,7 @@ type profilerController struct {
 func (c *profilerController) Run(ctx context.Context) (err error) {
 	// tagging current goroutine
 	// we could filter tag from pprof data to figure out that how much cost our profiler cause
-	ctx = pprof.WithLabels(ctx, pprof.Labels("type", typeProfiler))
+	ctx = pprof.WithLabels(ctx, pprof.Labels(keyType, typeProfiler))
 	return c.p.Run(ctx)
 }
 
@@ -57,17 +65,36 @@ func (c *profilerController) Stop() {
 	c.p.Stop()
 }
 
-func (c *profilerController) Tag(ctx context.Context, msg Message) {
+func (c *profilerController) TagMeta(ctx context.Context, msg Message) {
 	ti := msg.TransInfo()
-	if ti == nil {
+	if ti == nil || ti.TransIntInfo()[transmeta.FromService] == "" {
 		return
 	}
-	c.p.Tag(ctx, []string{
-		"type", typeTrace,
-		"from", ti.TransIntInfo()[transmeta.FromService],
-	})
+	c.p.Tag(ctx,
+		keyType, typeTrace,
+		keyStage, stageMeta,
+		keyFrom, ti.TransIntInfo()[transmeta.FromService],
+	)
 }
 
-func (c *profilerController) Untag(ctx context.Context, msg Message) {
+func (c *profilerController) TagPayload(ctx context.Context, msg Message) {
+	ti := msg.TransInfo()
+	// that's means TagMeta already set the tags
+	if ti.TransIntInfo()[transmeta.FromService] != "" {
+		return
+	}
+
+	ri := msg.RPCInfo()
+	if ri == nil || ri.From() == nil {
+		return
+	}
+	c.p.Tag(ctx,
+		keyType, typeTrace,
+		keyStage, stagePayload,
+		keyFrom, ri.From().ServiceName(),
+	)
+}
+
+func (c *profilerController) Untag(ctx context.Context) {
 	c.p.Untag(ctx)
 }
